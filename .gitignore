@@ -1,0 +1,8 @@
+# virtual environment
+.venv
+
+#data
+data
+
+#figures
+output
