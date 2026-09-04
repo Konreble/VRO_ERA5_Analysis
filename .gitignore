@@ -1,4 +1,7 @@
-# virtual environment
+#pycharm idea folder
+.idea
+
+# virtual environment#
 .venv
 
 #data
