@@ -5,6 +5,8 @@ Functions for loading .grib data and reducing size and converting to a single cs
 import pandas as pd
 import xarray as xr
 
+DEBUG = 1
+
 RAW_DATA_PATH = "../data/raw/Sicilly hourly/"
 
 PROCESSED_DATA_PATH = "../data/processed/Sicilly hourly/"
@@ -30,15 +32,17 @@ FILENAMES = [
 ]
 
 RAW_DATA_FILENAMES = [name + ".grib" for name in FILENAMES]
-def process_sicily_grib(
-        grib_path: str, lsm_path: str, output_csv_path: str
-) -> pd.DataFrame:
-    # 1. Load the Land-Sea Mask
-    lsm_ds = xr.open_dataset(lsm_path)
-    lsm_var = "lsm" if "lsm" in lsm_ds else list(lsm_ds.data_vars.keys())[0]
-    land_mask = lsm_ds[lsm_var] > 0.5
 
-    # 2. Open t2m (Analysis stream)
+
+def grib_to_linear_csv(
+        grib_path: str,
+        lsm_path: str,
+        output_csv_path: str
+) -> pd.DataFrame:
+
+    lsm_ds = xr.open_dataset(lsm_path)
+    land_mask = lsm_ds["lsm"] > 0.5
+
     ds_t2m = xr.open_dataset(
         grib_path,
         engine="cfgrib",
@@ -46,10 +50,10 @@ def process_sicily_grib(
             "filter_by_keys": {"dataType": "an"},
         },
     )
-    print("t2m data variables:", list(ds_t2m.data_vars.keys()))
-    print("t2m dimensions:", ds_t2m.dims)
+    if DEBUG:
+        print("t2m data variables:", list(ds_t2m.data_vars.keys()))
+        print("t2m dimensions:", ds_t2m.dims)
 
-    # 3. Open tp (Forecast stream)
     ds_tp = xr.open_dataset(
         grib_path,
         engine="cfgrib",
@@ -57,61 +61,70 @@ def process_sicily_grib(
             "filter_by_keys": {"dataType": "fc"},
         },
     )
-    print("tp data variables:", list(ds_tp.data_vars.keys()))
-    print("tp dimensions:", ds_tp.dims)
+    if DEBUG:
+        print("tp data variables:", list(ds_tp.data_vars.keys()))
+        print("tp dimensions:", ds_tp.dims)
 
-    # --- 1. Process t2m ---
     t2m_land = ds_t2m["t2m"].where(land_mask)
     t2m_mean = t2m_land.mean(dim=["latitude", "longitude"])
     df_t2m = t2m_mean.to_dataframe().reset_index()
 
-    # For analysis data, 'time' is already the hourly timestamp
     df_t2m["timestamp"] = pd.to_datetime(df_t2m["time"])
     df_t2m = df_t2m[["timestamp", "t2m"]].dropna()
 
-    print("created df_t2m with shape: ", df_t2m.shape, " and columns: ", df_t2m.columns)
-    print("Unique timestamps in t2m:", df_t2m["timestamp"].nunique())
+    if DEBUG:
+        print("created df_t2m with shape: ", df_t2m.shape, " and columns: ", df_t2m.columns)
+        print("Unique timestamps in t2m:", df_t2m["timestamp"].nunique())
 
-    # 5. Mask water and compute spatial mean for tp
     tp_land = ds_tp["tp"].where(land_mask)
     tp_mean = tp_land.mean(dim=["latitude", "longitude"])
     df_tp = tp_mean.to_dataframe().reset_index()
 
-    # For forecast data: base run time + forecast step = valid hourly timestamp
-    # Ensure 'step' is a timedelta and 'time' is a datetime
-    df_tp["timestamp"] = pd.to_datetime(df_tp["time"]) + pd.to_timedelta(
-        df_tp["step"]
-    )
+    df_tp["timestamp"] = pd.to_datetime(df_tp["time"]) + pd.to_timedelta(df_tp["step"])
     df_tp = df_tp[["timestamp", "tp"]].dropna()
 
-    print("created df_tp with shape: ", df_tp.shape, " and columns: ", df_tp.columns)
-    print("Unique timestamps in tp:", df_tp["timestamp"].nunique())
+    if DEBUG:
+        print("created df_tp with shape: ", df_tp.shape, " and columns: ", df_tp.columns)
+        print("Unique timestamps in tp:", df_tp["timestamp"].nunique())
 
-    # 6. Merge both variables on the timestamp
     combined_df = pd.merge(df_t2m, df_tp, on="timestamp", how="inner")
     combined_df = combined_df.sort_values("timestamp").drop_duplicates(
         subset=["timestamp"]
     )
-    print("completed merge. Shape: ", combined_df.shape)
-    print(combined_df.head())
+    if DEBUG:
+        print("completed merge. Shape: ", combined_df.shape)
+        print(combined_df.head())
 
-    # 7. Save intermediate CSV
     combined_df.to_csv(output_csv_path, index=False)
-    print(
-        f"Successfully created {output_csv_path} with shape {combined_df.shape}"
-    )
+    if DEBUG:
+        print(f"Successfully created {output_csv_path} with shape {combined_df.shape}")
 
-    # Clean up file handles
     ds_t2m.close()
     ds_tp.close()
     lsm_ds.close()
 
     return combined_df
-def load_era5_hourly():
-    for name in FILENAMES:
+
+def load_era5_hourly(file_list):
+    chunks = []
+    for name in file_list:
         print("loading data from: ", RAW_DATA_PATH, name , ".grib")
-        process_sicily_grib(
+        df = grib_to_linear_csv(
             RAW_DATA_PATH + name + ".grib",
             LSM_PATH,
-            PROCESSED_DATA_PATH + name + "_hourly.csv")
+            PROCESSED_DATA_PATH + name + "_hourly.csv"
+        )
+        print(RAW_DATA_PATH, name , ".grib loaded successfully. Shape: ", df.shape)
 
+        chunks.append(df)
+
+    full_df = pd.concat(chunks, ignore_index=True)
+    if DEBUG:
+        print("complete dataframe created with shape: ", full_df.shape, " and size: ", full_df.size)
+
+    full_df.to_csv(PROCESSED_DATA_PATH + "ERA5_hourly_raw_csv")
+    if DEBUG:
+        print("saved file as: ", PROCESSED_DATA_PATH, "ERA5_hourly_csv")
+
+
+load_era5_hourly(["ERA5_1980-1985", "ERA5_1974-1979"])
