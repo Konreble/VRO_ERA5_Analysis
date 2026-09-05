@@ -3,4 +3,5 @@ pandas
 matplotlib
 xarray
 cfgrib
+netCDF4
 eccodes
