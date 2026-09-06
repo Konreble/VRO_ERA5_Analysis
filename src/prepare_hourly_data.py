@@ -1,11 +1,12 @@
 '''
-Functions for loading .grib data and reducing size and converting to a single csv with daily value
+Functions for loading .grib data, reducing size and converting to a single csv with hourly values
 '''
 
+from pathlib import Path
 import pandas as pd
 import xarray as xr
 
-DEBUG = 1
+DEBUG = True    # set to True to enable more detailed information about the progress and data loaded
 
 RAW_DATA_PATH = "../data/raw/Sicilly hourly/"
 
@@ -31,8 +32,12 @@ FILENAMES = [
     "ERA5_2021-2025"
 ]
 
-RAW_DATA_FILENAMES = [name + ".grib" for name in FILENAMES]
+ORIGINAL_COLUMNS = ["timestamp", "t2m", "tp"]
 
+RENAME_MAP = {
+    "t2m" : "temperature_K",
+    "tp"  : "precipitation"
+}
 
 def grib_to_linear_csv(
         grib_path: str,
@@ -105,9 +110,9 @@ def grib_to_linear_csv(
 
     return combined_df
 
-def load_era5_hourly(file_list):
-    chunks = []
-    for name in file_list:
+def load_era5_hourly(*files):
+    data_chunks = []
+    for name in files:
         print("loading data from: ", RAW_DATA_PATH, name , ".grib")
         df = grib_to_linear_csv(
             RAW_DATA_PATH + name + ".grib",
@@ -116,15 +121,31 @@ def load_era5_hourly(file_list):
         )
         print(RAW_DATA_PATH, name , ".grib loaded successfully. Shape: ", df.shape)
 
-        chunks.append(df)
+        data_chunks.append(df)
 
-    full_df = pd.concat(chunks, ignore_index=True)
+    full_df = pd.concat(data_chunks, ignore_index=True)
     if DEBUG:
-        print("complete dataframe created with shape: ", full_df.shape, " and size: ", full_df.size)
+        print("complete dataframe before cleaning created with shape: ", full_df.shape, " and size: ", full_df.size)
+
+    full_df = full_df.rename(columns=RENAME_MAP)
+    full_df["timestamp"] = pd.to_datetime(full_df["timestamp"], utc=True)
+
+    full_df["hour"] = full_df["timestamp"].dt.hour
+    full_df["day_of_week"] = full_df["timestamp"].dt.dayofweek  # 0 = Monday
+    full_df["day_name"] = full_df["timestamp"].dt.day_name()
+    full_df["month"] = full_df["timestamp"].dt.month
+    full_df["date"] = full_df["timestamp"].dt.date
+
+    full_df["temperature_K"] = full_df["temperature_K"].interpolate().ffill().bfill()
+    full_df["precipitation"] = full_df["precipitation"].interpolate().ffill().bfill()
+
+    full_df["temperature_K"] = full_df["temperature_K"].round(2)
+    full_df["precipitation"] = full_df["precipitation"].round(8)
+
 
     full_df.to_csv(PROCESSED_DATA_PATH + "ERA5_hourly_raw_csv")
     if DEBUG:
-        print("saved file as: ", PROCESSED_DATA_PATH, "ERA5_hourly_csv")
+        print("saved file as: ", PROCESSED_DATA_PATH, "ERA5_hourly.csv")
 
 
-load_era5_hourly(["ERA5_1980-1985", "ERA5_1974-1979"])
+load_era5_hourly("ERA5_1980-1985", "ERA5_1974-1979")
