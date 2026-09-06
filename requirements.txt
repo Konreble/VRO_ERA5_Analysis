@@ -6,3 +6,4 @@ cfgrib
 netCDF4
 eccodes
 pathlib
+logging
