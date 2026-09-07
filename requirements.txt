@@ -7,3 +7,4 @@ netCDF4
 eccodes
 pathlib
 logging
+scipy

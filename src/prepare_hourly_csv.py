@@ -139,6 +139,7 @@ def load_era5_hourly(
         processed_dir: Path,
         lsm_path: Path,
         file_stems: list[str],
+        force_rebuild: bool = False,
 ) -> pd.DataFrame:
 
         """
@@ -149,20 +150,14 @@ def load_era5_hourly(
         final_output = processed_dir / "ERA5_hourly_full.csv"
 
         # check for existing csv
-        if final_output.exists():
-            ts = pd.read_csv(final_output, usecols=["timestamp"], parse_dates=["timestamp"])["timestamp"]
-            start_date, end_date = ts.iloc[0], ts.iloc[-1]
-            years = (end_date - start_date).days / 365.25
+        if final_output.exists() and not force_rebuild:
+            logger.info(f"Existing dataset {final_output.name} found. Loading data from file.")
+            return pd.read_csv(final_output, parse_dates=["timestamp"])
 
-            print(f"\nFound existing '{final_output.name}':")
-            print(f"  Range: {start_date:%Y-%m-%d} to {end_date:%Y-%m-%d} ({years:.1f} years)")
-
-            choice = input("Use existing file? [Y/n]: ").strip().lower()
-            if choice in ("", "y", "yes"):
-                print(f"Loading {final_output.name}...")
-                return pd.read_csv(final_output, parse_dates=["timestamp"])
-
-            print("Regenerating dataset from raw files...")
+        if force_rebuild:
+            logger.info("FORCE_REBUILD is True. Regenerating dataset from raw GRIBs...")
+        else:
+            logger.info("No processed file found. Generating dataset from raw GRIBs...")
 
         # grib to csv pipeline
         logger.info(f"Loading Land-Sea Mask from {lsm_path.name}")

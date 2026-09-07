@@ -1,8 +1,11 @@
 from pathlib import Path
-from src.prepare_hourly_csv import load_era5_hourly
 import logging
+from src.prepare_hourly_csv import load_era5_hourly
+from src.Sicily_drought_analyzer import SicilyDroughtAnalyzer
 
-DEBUG = True
+
+DEBUG = False
+FORCE_REBUILD = False
 
 logging.basicConfig(
     level=logging.DEBUG if DEBUG else logging.INFO,
@@ -12,6 +15,7 @@ logging.basicConfig(
 RAW_DIR = Path("data/raw/Sicily hourly")
 PROCESSED_DIR = Path("data/processed/Sicily hourly")
 LSM_PATH = RAW_DIR / "Sicily_hourly_land_sea_mask.nc"
+FIGURES_DIR = Path("output/figures")
 
 FILE_STEMS = [
     "ERA5_1940-1943",
@@ -31,17 +35,22 @@ FILE_STEMS = [
     "ERA5_2021-2025",
 ]
 
-def main():
-    print("Starting ERA5 Sicily Hourly Data Pipeline...")
 
+def main():
     df = load_era5_hourly(
         raw_dir=RAW_DIR,
         processed_dir=PROCESSED_DIR,
         lsm_path=LSM_PATH,
         file_stems=FILE_STEMS,
+        force_rebuild=FORCE_REBUILD,
     )
 
-    print(df.head())
+    analyzer = SicilyDroughtAnalyzer(df)
+
+    analyzer.plot_monthly_spi(scale=3, save_path=FIGURES_DIR / "spi_3_anomaly.svg")
+    analyzer.plot_monthly_spi(scale=12, save_path=FIGURES_DIR / "spi_12_anomaly.svg")
+    analyzer.plot_annual_spi(save_path=FIGURES_DIR / "spi_annual.svg")
+    analyzer.plot_annual_trends(save_path=FIGURES_DIR / "climate_trends.svg")
 
 
 if __name__ == "__main__":
