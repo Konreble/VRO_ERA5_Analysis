@@ -33,13 +33,24 @@ python main.py
 ## Project Structure
 
 ```text
-├── main.py                 # Pipeline execution & figure exports
-├── prepare_hourly_csv.py   # GRIB extraction, land-sea masking, and CSV caching
-├── drought_analyzer.py     # SicilyDroughtAnalyzer class & plotting methods
-├── indices.py              # Pure SPI math (Gamma distribution fitting & Z-scores)
-├── requirements.txt        # Dependencies 
-├── data/                   # Raw and processed datasets
-└── output/figures/         # Generated figures (SVG)
+VRO_ERA5_Analysis/
+  README.md
+  requirements.txt
+  main.py
+  src/
+    __init__.py
+    Sicily_drought_analyzer.py
+    indices.py
+    prepare_hourly_csv.py
+  output/
+    figures/
+  data/
+    raw/
+      Sicily hourly/
+        #place raw ERA5 data here
+    processed/
+      Sicily hourly/
+        ERA5_hourly_full_csv
 ```
 
 ---
