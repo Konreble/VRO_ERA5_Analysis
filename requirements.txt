@@ -8,3 +8,5 @@ eccodes
 pathlib
 logging
 scipy
+seaborn
+cartopy

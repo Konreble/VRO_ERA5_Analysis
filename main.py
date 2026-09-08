@@ -51,7 +51,12 @@ def main():
     analyzer.plot_monthly_spi(scale=12, save_path=FIGURES_DIR / "spi_12_anomaly.svg")
     analyzer.plot_annual_spi(save_path=FIGURES_DIR / "spi_annual.svg")
     analyzer.plot_annual_trends(save_path=FIGURES_DIR / "climate_trends.svg")
-
+    analyzer.plot_year_diagnostic(year=1977, save_path=FIGURES_DIR / "sicily_1977_diagnostic.svg")
+    analyzer.plot_year_diagnostic(year=2001, save_path=FIGURES_DIR / "sicily_2001_diagnostic.svg") # not used in report
+    analyzer.plot_year_diagnostic(year=2024, save_path=FIGURES_DIR / "sicily_2024_diagnostic.svg") # not used in report
+    analyzer.plot_temp_precip_coupling(save_path=FIGURES_DIR / "temp_precip_anomaly_coupling.svg")
+    analyzer.plot_longterm_correlation_matrix(save_path=FIGURES_DIR / "longterm_correlation_matrix.svg")
+    analyzer.plot_decadal_drought_frequency(save_path=FIGURES_DIR / "decadal_drought_frequency_spi12.svg")
 
 if __name__ == "__main__":
     main()

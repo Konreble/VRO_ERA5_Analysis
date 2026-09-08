@@ -4,8 +4,8 @@
 # virtual environment#
 .venv
 
-#data
-data
+#raw data
+data/raw
 
 #figures
 output
