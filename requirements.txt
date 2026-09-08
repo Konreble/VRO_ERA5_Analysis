@@ -9,4 +9,3 @@ pathlib
 logging
 scipy
 seaborn
-cartopy
